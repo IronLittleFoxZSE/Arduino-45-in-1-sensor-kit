@@ -1,14 +1,9 @@
-
-
-
 #include <Wire.h>              //including libraries of I2C
 #include <IRremote.h>          //including libraries of remote control
 #define RECV_PIN  12        //pin 12 of IR remoter control receiver
 #include <Servo.h>
 IRrecv irrecv(RECV_PIN);      //defining pin 12 of IR remoter control
 Servo myservo;
-decode_results res;
-decode_results results;         //cache of decode of IR remoter control
 #define IR_Go       0x00FF18E7 //going forward
 #define IR_Back     0x00FF4AB5  //going backward
 #define IR_Left     0x00FF10EF//turning left
@@ -35,7 +30,6 @@ int pinLB=2;             //pin of controlling turning---- IN1 of motor driver bo
 int pinLF=4;             //pin of controlling turning---- IN2 of motor driver board
 int pinRB=7;            //pin of controlling turning---- IN3 of motor driver board
 int pinRF=8;            //pin of controlling turning---- IN4 of motor driver board
-int flag=0;
 int Car_state=0;             //the working state of car
 int myangle;                //defining variable of angle
 int pulsewidth;              //defining variable of pulse width
@@ -43,6 +37,7 @@ unsigned char DuoJiao=90;    //initialized angle of motor at 90°
 
 #define SpeedStop 0
 #define SpeedStart 150
+#define SpeedLineOnTracking 100
 
 void Sensor_IO_Config()     //IO initialized function of three line tracking , all setting at input
 {
@@ -53,14 +48,14 @@ void Sensor_IO_Config()     //IO initialized function of three line tracking , a
   pinMode(outputPin, OUTPUT);    //IO of ultrasonic module
 }
 
-void Sensor_Scan(void) //function of reading-in signal of line tracking module 
+void Sensor_Scan() //function of reading-in signal of line tracking module 
 {
   SL = digitalRead(SensorLeft);
   SM = digitalRead(SensorMiddle);
   SR = digitalRead(SensorRight);
 }
 
-void M_Control_IO_config(void)
+void M_Control_IO_config()
 {
   pinMode(pinLB,OUTPUT); // /pin 2
   pinMode(pinLF,OUTPUT); // pin 4
@@ -75,145 +70,131 @@ void Set_Speed(unsigned char pwm) //function of setting speed
   analogWrite(Rpwm_pin,pwm);
 }
 void advance()    //  going forward
-    {
-     digitalWrite(pinRB,LOW);  // making motor move towards right rear
-     digitalWrite(pinRF,HIGH);
-     digitalWrite(pinLB,LOW);  // making motor move towards left rear
-     digitalWrite(pinLF,HIGH); 
-     Car_state = 1; 
-       
-    }
+{
+  digitalWrite(pinRB,HIGH);
+  digitalWrite(pinRF,LOW );   
+  digitalWrite(pinLB,LOW);   
+  digitalWrite(pinLF,HIGH); 
+}
+
 void turnR()        //turning right(dual wheel)
-    {
-     digitalWrite(pinRB,LOW);  //making motor move towards right rear
-     digitalWrite(pinRF,HIGH);
-     digitalWrite(pinLB,HIGH);
-     digitalWrite(pinLF,LOW);  //making motor move towards left front
-     Car_state = 4;
-    
-    }
+{
+  digitalWrite(pinRB,HIGH); 
+  digitalWrite(pinRF,LOW);
+  digitalWrite(pinLB,HIGH);
+  digitalWrite(pinLF,LOW);
+}
 void turnL()         //turning left(dual wheel)
-    {
-     digitalWrite(pinRB,HIGH);
-     digitalWrite(pinRF,LOW );   //making motor move towards right front
-     digitalWrite(pinLB,LOW);   //making motor move towards left rear
-     digitalWrite(pinLF,HIGH);
-     Car_state = 3;
-     
-    }    
+{
+  digitalWrite(pinRB,LOW);
+  digitalWrite(pinRF,HIGH);
+  digitalWrite(pinLB,LOW);
+  digitalWrite(pinLF,HIGH); 
+}   
+
 void stopp()        //stop
-    {
-     digitalWrite(pinRB,HIGH);
-     digitalWrite(pinRF,HIGH);
-     digitalWrite(pinLB,HIGH);
-     digitalWrite(pinLF,HIGH);
-     Car_state = 5;
-    
-    }
+{
+  digitalWrite(pinRB,HIGH);
+  digitalWrite(pinRF,HIGH);
+  digitalWrite(pinLB,HIGH);
+  digitalWrite(pinLF,HIGH);
+}
+
 void back()         //back up
-    {
-     digitalWrite(pinRB,HIGH);  //making motor move towards right rear     
-     digitalWrite(pinRF,LOW);
-     digitalWrite(pinLB,HIGH);  //making motor move towards left rear
-     digitalWrite(pinLF,LOW);
-     Car_state = 2;
-         
-    }
+{
+  digitalWrite(pinRB,LOW);  //making motor move towards right rear
+  digitalWrite(pinRF,HIGH);
+  digitalWrite(pinLB,HIGH);
+  digitalWrite(pinLF,LOW);  //making motor move towards left front
+}
          
 void Gravity_Sensor()
 {
-  flag = 0;
-  while (flag == 0) 
+  while (true) 
   {
     if (Serial.available())
-     {
+    {
       bluetooth_data = Serial.read();
       switch (bluetooth_data) 
-     {
-    case 'U':
-    advance();
-    Set_Speed(SpeedStart);
-    break;
-   case 'D':
-    back();
-    Set_Speed(SpeedStart);
-    break;
-   case 'L':
-    turnL();
-    Set_Speed(SpeedStart);
-    break;
-   case 'R':
-    turnR();
-    Set_Speed(SpeedStart);
-    break;
-    case 'S':
-    flag = 1;
-    break;
-    default: 
-    break;
-    }   
-   }
+      {
+        case 'U':
+          advance();
+          Set_Speed(SpeedStart);
+          break;
+        case 'D':
+          back();
+          Set_Speed(SpeedStart);
+          break;
+        case 'L':
+          turnL();
+          Set_Speed(SpeedStart);
+          break;
+        case 'R':
+          turnR();
+          Set_Speed(SpeedStart);
+          break;
+        case 'S':
+          return;
+        default: 
+          break;
+      }   
+    }
   }
 }
 
 void Line_Tracking(void) //function of line tracking 
 {
-  flag = 0;
-  while (flag == 0) 
+  while (true) 
   {
- Sensor_Scan();
- if (SM == HIGH)// middle sensor in black area
-{
-if (SL == LOW & SR == HIGH) // black on left, white on right, turn left
-{
-turnR();
-Set_Speed(SpeedStart);
-}
-else if (SR == LOW & SL == HIGH) // white on left, black on right, turn right
-{
-turnL();
-Set_Speed(SpeedStart);
-}
-else // white on both sides, going forward
-{
-advance();
-Set_Speed(SpeedStart);
-}
-}
-else // middle sensor on white area
-{
-if (SL== LOW & SR == HIGH)// black on left, white on right, turn left
-{
-turnR();
-Set_Speed(SpeedStart);
-}
-else if (SR == LOW & SL == HIGH) // white on left, black on right, turn right
-{
-turnL();
-Set_Speed(SpeedStart);
-}
-else // all white, stop
-{
-back();
-Set_Speed(150);
-delay(100);
-stopp() ;
-Set_Speed(SpeedStop);
-}
-}
-  if (Serial.available())
-   {
+    Sensor_Scan();
+    if (SM == HIGH)// middle sensor in black area
+    {
+      if (SL == LOW & SR == HIGH) // black on left, white on right, turn left
+      {
+        turnR();
+        Set_Speed(SpeedLineOnTracking);
+      }
+      else if (SR == LOW & SL == HIGH) // white on left, black on right, turn right
+      {
+        turnL();
+        Set_Speed(SpeedLineOnTracking);
+      }
+      else // white on both sides, going forward
+      {
+        advance();
+        Set_Speed(SpeedLineOnTracking);
+      }
+    }
+    else // middle sensor on white area
+    {
+      if (SL== LOW & SR == HIGH)// black on left, white on right, turn left
+      {
+        turnR();
+        Set_Speed(SpeedLineOnTracking);
+      }
+      else if (SR == LOW & SL == HIGH) // white on left, black on right, turn right
+      {
+        turnL();
+        Set_Speed(SpeedLineOnTracking);
+      }
+      else // all white, stop
+      {
+        back();
+        Set_Speed(150);
+        delay(10);
+        stopp() ;
+        Set_Speed(SpeedStop);
+      }
+    }
+    if (Serial.available())
+    {
       bluetooth_data = Serial.read();
       if (bluetooth_data == 'S') {
-        flag = 1;
+        return;
       }
-   }
-
+    }
+  }
 }
-
-
-}
-
 
 float checkdistance() 
 {
@@ -226,7 +207,6 @@ float checkdistance()
   delay(10);
   return distance;
 }
-
 
 void Detect_obstacle_distance() 
 {
@@ -244,19 +224,24 @@ void Detect_obstacle_distance()
   }
 }
 
-
 void Ultrasonic_Obstacle_Avoidance()
 {
-  flag = 0;
-  while (flag == 0) 
+  while (true) 
   {
     DM = checkdistance();
+    Serial.print("DM: ");
+    Serial.println(DM);
     if (DM < 30) 
     {
       stopp();
       Set_Speed(SpeedStop);
       delay(1000);
+      
       Detect_obstacle_distance();
+      Serial.print("DL: ");
+      Serial.println(DL);
+      Serial.print("DR: ");
+      Serial.println(DR);
       if (DL < 50 || DR < 50) 
       {
         if (DL > DR) {
@@ -301,79 +286,81 @@ void Ultrasonic_Obstacle_Avoidance()
     else 
     {
       advance();
-      Set_Speed(130);
+      Set_Speed(SpeedStart);
     }
+    
     if (Serial.available())
     {
       bluetooth_data = Serial.read();
       if (bluetooth_data == 'S') 
       {
-        flag = 1;
+        return;
       }
     }
   }
 }
-
-
-
-
-
 
 void Infrared_Remote_Control(void)   //remote control，when pressing“#”，it quitting from the mode
-{flag = 0;
-  while (flag == 0) 
+{
+  decode_results results;         //cache of decode of IR remoter control
+  while (true) 
   {
-   if(irrecv.decode(&results))  //to judge whether serial port receive data
+    if(irrecv.decode(&results))  //to judge whether serial port receive data
     {
-     Key = results.value;
-    switch(Key)
-     {
-       case IR_Go:advance();Set_Speed(SpeedStart);   //UP
-       break;
-       case IR_Back: back();Set_Speed(SpeedStart);   //back
-       break;
-       case IR_Left:turnL();Set_Speed(SpeedStart);   //Left    
-       break;
-       case IR_Right:turnR();Set_Speed(SpeedStart); //Righ
-       break;
-       case IR_Stop:stopp();Set_Speed(SpeedStop);   //stop
-       break;
-       default: 
-       break;      
-     } 
-     irrecv.resume(); // Receive the next value
+      Key = results.value;
+      switch(Key)
+      {
+        case IR_Go:
+          advance();
+          Set_Speed(SpeedStart);   //UP
+          break;
+        case IR_Back: 
+          back();
+          Set_Speed(SpeedStart);   //back
+          break;
+        case IR_Left:
+          turnL();
+          Set_Speed(SpeedStart);   //Left    
+          break;
+        case IR_Right:
+          turnR();
+          Set_Speed(SpeedStart); //Righ
+          break;
+        case IR_Stop:
+          stopp();
+          Set_Speed(SpeedStop);   //stop
+          break;
+        default: 
+        break;      
+      } 
+      irrecv.resume(); // Receive the next value
     }
     if (Serial.available())
-     {
+    {
       bluetooth_data = Serial.read();
-      if (bluetooth_data == 'S') {
-        flag = 1;
-
-      }
-     }
-     
+      if (bluetooth_data == 'S')
+        return;
+    }
   }
 }
-
-
-
 
 void setup() 
 { 
-   myservo.attach(A2);
-   M_Control_IO_config();     //motor controlling the initialization of IO
-   Set_Speed(SpeedStart);  //setting initialized speed
+  myservo.attach(A2);
+  M_Control_IO_config();     //motor controlling the initialization of IO
+  Set_Speed(SpeedStart);  //setting initialized speed
   
-   Sensor_IO_Config();            //initializing IO of line tracking module 
-   irrecv.enableIRIn();           //starting receiving IR remote control signal
-   Serial.begin(9600);            //initialized serial port , using Bluetooth as serial port, setting baud 
-   myservo.write(DuoJiao);
-   stopp();                       //stop
-   delay(1000);
-   DL = 0;
-   DM = 0;
-   DR = 0;
+  Sensor_IO_Config();            //initializing IO of line tracking module 
+  irrecv.enableIRIn();           //starting receiving IR remote control signal
+  Serial.begin(9600);            //initialized serial port , using Bluetooth as serial port, setting baud 
+  myservo.write(DuoJiao);
+  stopp();                       //stop
+  delay(1000);
+  DL = 0;
+  DM = 0;
+  DR = 0;
 } 
+
 void loop() 
 {  
   if (Serial.available())
@@ -383,42 +370,50 @@ void loop()
   }
   switch (bluetooth_data) {
     case 'U':
-    advance();
-    Set_Speed(SpeedStart);
-    break;
-   case 'D':
-    back();
-    Set_Speed(SpeedStart);
-    break;
-   case 'L':
-    turnL();
-    Set_Speed(SpeedStart);
-    break;
-   case 'R':
-    turnR();
-    Set_Speed(SpeedStart);
-    break;
-   case 'S':
-    stopp();
-    Set_Speed(SpeedStop);
-    break;
-   case 'T':
-    stopp();
-    Line_Tracking();
-    break;
+      advance();
+      Set_Speed(SpeedStart);
+      break;
+    case 'D':
+      back();
+      Set_Speed(SpeedStart);
+      break;
+    case 'L':
+      Serial.println("Skręt w lewo");
+      turnL();
+      Set_Speed(SpeedStart);
+      break;
+    case 'R':
+      turnR();
+      Set_Speed(SpeedStart);
+      break;
+    case 'S':
+      stopp();
+      Set_Speed(SpeedStop);
+      break;
+    case 'T':
+      stopp();
+      Line_Tracking();
+      break;
     case 'O':
-    stopp();
-    Ultrasonic_Obstacle_Avoidance();
-    break;
+      stopp();
+      Set_Speed(SpeedStop);
+      Ultrasonic_Obstacle_Avoidance();
+      break;
     case 'I':
-    stopp();
-    Infrared_Remote_Control();
-    break;
+      stopp();
+      Set_Speed(SpeedStop);
+      Infrared_Remote_Control();
+      break;
     case 'G':
-    stopp();
-    Gravity_Sensor();
-    break;
+      stopp();
+      Set_Speed(SpeedStop);
+      Gravity_Sensor();
+      break;
     default: 
-    break;
+      stopp() ;
+      Set_Speed(SpeedStop);
+      break;
   }
+  //bluetooth_data = ' ';
+  
 }
