@@ -238,7 +238,60 @@ void IR_remote_control() {
   }
 }
 
-void setup(){
+
+
+
+
+
+
+
+String getData()
+{
+  String data = "";
+  while (Serial.available() > 0) 
+  {
+    data = data + ((char)(Serial.read()));
+    if (String(data).length() == 3)
+      break;
+    delay(2);
+  }
+  return data;
+}
+
+bool isDataCorrect(String data)
+{
+  if (String(data).length() == 0
+      || String(data).length() > 3
+      || String(data).charAt(0) != '%'
+      || String(data).charAt((String(data).length() - 1)) != '#')
+    return false;
+  return true;
+}
+
+char getCommand(String data)
+{
+  return String(data).charAt(1);
+}
+
+void cameraUp()
+{
+  V_Servo_angle = V_Servo_angle + 4;
+  if (V_Servo_angle >= 180)
+    V_Servo_angle = 180;
+  servo_10.write(round(V_Servo_angle));
+}
+
+void cameraDown()
+{
+  V_Servo_angle = V_Servo_angle - 4;
+  if (V_Servo_angle <= 0)
+    V_Servo_angle = 0;
+  servo_10.write(round(V_Servo_angle));
+}
+
+
+void setup()
+{
   Serial.begin(115200);
   servo_10.attach(10);
   pinMode(7, INPUT);
@@ -282,95 +335,55 @@ void setup(){
   pinMode(13, INPUT);
 }
 
-void loop(){
-  while (true) {
-    while (Serial.available() > 0) {
-      BLE_value_temp = BLE_value_temp + ((char)(Serial.read()));
-      delay(2);
-      if (!Serial.available() > 0) {
-        BLE_value = BLE_value_temp;
-        BLE_value_temp = "";
+String serialData;
+char command;
 
-      }
-    }
-    if (0 < String(BLE_value).length()) {
-      if (4 >= String(BLE_value).length()) {
-        if ('%' == String(BLE_value).charAt(0) && '#' == String(BLE_value).charAt((String(BLE_value).length() - 1))) {
-          if (IR_Mode_Flag == true) {
-            STOP();
-            IR_Car_Mode = ' ';
-            IR_Mode_Flag = false;
+void loop()
+{
+  //IR_remote_control();
 
-          }
-          switch (String(BLE_value).charAt(1)) {
-           case 'H':
-            V_Servo_angle = V_Servo_angle + 4;
-            if (V_Servo_angle >= 180) {
-              V_Servo_angle = 180;
-
-            }
-            servo_10.write(round(V_Servo_angle));
-            delay(0);
-            BLE_value = "";
-            break;
-           case 'G':
-            V_Servo_angle = V_Servo_angle - 4;
-            if (V_Servo_angle <= 0) {
-              V_Servo_angle = 0;
-
-            }
-            servo_10.write(round(V_Servo_angle));
-            delay(0);
-            BLE_value = "";
-            break;
-           case 'F':
-            Move_Forward(110);
-            delay(400);
-            BLE_value = "";
-            break;
-           case 'B':
-            Move_Backward(110);
-            delay(400);
-            BLE_value = "";
-            break;
-           case 'L':
-            Rotate_Left(110);
-            delay(250);
-            BLE_value = "";
-            break;
-           case 'R':
-            Rotate_Right(110);
-            delay(250);
-            BLE_value = "";
-            break;
-           case 'T':
-            Infrared_Tracing();
-            break;
-           case 'S':
-            BLE_value = "";
-            STOP();
-            break;
-           case 'A':
-            Ultrasonic_Avoidance();
-            break;
-           case 'Z':
-            Ultrasonic_Follow();
-            break;
-          }
-
-        }
-
-      } else {
-        BLE_value = "";
-        STOP();
-
-      }
-
-    } else {
-      STOP();
-
-    }
-    IR_remote_control();
+  serialData = getData();
+  if (!isDataCorrect(serialData))
+  {
+    STOP();
+    return;
   }
 
+  command = getCommand(serialData);
+  switch (command) {
+    case 'H':
+      cameraUp();
+      break;
+    case 'G':
+      cameraDown();
+      break;
+    case 'F':
+      Move_Forward(110);
+      delay(400);
+      break;
+    case 'B':
+      Move_Backward(110);
+      delay(400);
+      break;
+    case 'L':
+      Rotate_Left(110);
+      delay(250);
+      break;
+    case 'R':
+      Rotate_Right(110);
+      delay(250);
+      break;
+    case 'T':
+      Infrared_Tracing();
+      break;
+    case 'S':
+      STOP();
+      break;
+    case 'A':
+      Ultrasonic_Avoidance();
+      break;
+    case 'Z':
+      Ultrasonic_Follow();
+      break;
+  }
 }
