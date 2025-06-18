@@ -1,5 +1,17 @@
 #include <IRremote.h>
 
+// Dla diod LED — LOW oznacza zapalenie
+#define LED_ON     LOW
+#define LED_OFF    HIGH
+
+// Dla przycisków — LOW oznacza naciśnięcie
+#define BUTTON_PRESSED   LOW
+#define BUTTON_RELEASED  HIGH
+
+// Dla buzzera — LOW oznacza dźwięk
+#define BUZZER_ON   LOW
+#define BUZZER_OFF  HIGH
+
 #define LED1 13
 #define LED2 12
 #define LED3 11
@@ -35,19 +47,17 @@ void setup()
   pinMode(LED3, OUTPUT); 
   pinMode(LED4, OUTPUT); 
 
+  pinMode(BUTTON1, INPUT_PULLUP);
+  pinMode(BUTTON2, INPUT_PULLUP);
+  pinMode(BUTTON3, INPUT_PULLUP);
+
   pinMode(LATCH_DIO,OUTPUT); 
   pinMode(CLK_DIO,OUTPUT); 
   pinMode(DATA_DIO,OUTPUT); 
 
   pinMode(BUZZER, OUTPUT);
 
-  digitalWrite(LED1, HIGH);
-  digitalWrite(LED2, HIGH);
-  digitalWrite(LED3, HIGH);
-  digitalWrite(LED4, HIGH);
-
   irrecv.enableIRIn();
-
 }
 
 void loop() 
@@ -57,43 +67,37 @@ void loop()
     irrecv.resume(); // Receive the next value
   }
 
-  if(digitalRead(BUTTON1) == LOW)
+  if(digitalRead(BUTTON1) == BUTTON_PRESSED)
   {
-    digitalWrite(LED1, LOW);
-    digitalWrite(LED2, LOW);
+    digitalWrite(LED1, LED_ON);
+    digitalWrite(LED2, LED_ON);
+    digitalWrite(LED3, LED_OFF);
+    digitalWrite(LED4, LED_OFF);
+    digitalWrite(BUZZER, BUZZER_OFF);
+  }
+  else if(digitalRead(BUTTON2) == BUTTON_PRESSED)
+  {
+    digitalWrite(LED1, LED_OFF);
+    digitalWrite(LED2, LED_OFF);
+    digitalWrite(LED3, LED_ON);
+    digitalWrite(LED4, LED_ON);
+    digitalWrite(BUZZER, BUZZER_ON);
+  }
+  else if(digitalRead(BUTTON3) == BUTTON_PRESSED)
+  {
+    digitalWrite(LED1, LED_ON);
+    digitalWrite(LED2, LED_ON);
+    digitalWrite(LED3, LED_ON);
+    digitalWrite(LED4, LED_ON);
+    digitalWrite(BUZZER, BUZZER_OFF);
   }
   else
   {
-    digitalWrite(LED1, HIGH);
-    digitalWrite(LED2, HIGH);
-  }
-
-  if(digitalRead(BUTTON2) == LOW)
-  {
-    digitalWrite(LED3, LOW);
-    digitalWrite(LED4, LOW);
-    digitalWrite(BUZZER, LOW);
-  }
-  else
-  {
-    digitalWrite(LED3, HIGH);
-    digitalWrite(LED4, HIGH);
-    digitalWrite(BUZZER, HIGH);
-  }
-
-  if(digitalRead(BUTTON3) == LOW)
-  {
-    digitalWrite(LED1, LOW);
-    digitalWrite(LED2, LOW);
-    digitalWrite(LED3, LOW);
-    digitalWrite(LED4, LOW);
-  }
-  else
-  {
-    digitalWrite(LED1, HIGH);
-    digitalWrite(LED2, HIGH);
-    digitalWrite(LED3, HIGH);
-    digitalWrite(LED4, HIGH);
+    digitalWrite(LED1, LED_OFF);
+    digitalWrite(LED2, LED_OFF);
+    digitalWrite(LED3, LED_OFF);
+    digitalWrite(LED4, LED_OFF);
+    digitalWrite(BUZZER, BUZZER_OFF);
   }
 
   int PotValue = analogRead(Pot1);
